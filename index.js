@@ -26,13 +26,7 @@ app.post("/upload", (req, res) => {
         })
         .on("end", () => {
           console.log("end of reading file stream");
-          sendToEcoleApi(results, (apiResults) =>
-            res.send({
-              success: true,
-              message: `successfully uploaded ${apiResults.length} records`,
-              payload: [...apiResults],
-            })
-          );
+          sendToEcoleApi(results, res, sendResponse);
         });
     })
     .catch((e) => {
@@ -41,35 +35,32 @@ app.post("/upload", (req, res) => {
 });
 
 app.post("/json", (req, res) => {
-  sendToEcoleApi(req.body, ({ uploads, errors }) =>
-    res.send({
-      success: !!uploads.length, // mark successful if at least 1 upload succeeded
-      message: `successfully uploaded ${uploads.length} records. ${errors.length} requests failed`,
-      payload: [...uploads],
-      errors: [...errors],
-    })
-  );
+  sendToEcoleApi(req.body, res, sendResponse);
 });
 
 app.listen(5001, () => console.log("express server listening on port 5001"));
 
-function sendToEcoleApi(items, cb) {
+function sendToEcoleApi(items, res, cb) {
   console.log("process.env.API_URL", process.env.API_URL);
   authenticate().then((token) => {
     console.log("token before posting data:", token);
     // console.log("items to be posted", items);
     // send the data recursively starting from the first
-    postData(0, items, token, cb);
+    const config = { index: 0, items, token, res, cb };
+    postData(config);
   });
 }
 
 let sn = 0;
 const uploads = [];
 const errors = [];
-function postData(index, items, token, done) {
+function postData({ index, items, token, res, cb }) {
   const item = items[index];
 
-  if (!item) return done({ uploads, errors });
+  if (!item) {
+    console.log(`posted the last of ${sn + 1} items. Returning response now`);
+    return cb({ uploads, errors, res });
+  }
 
   if (item.phone === "") {
     //   avoid api 'phone cannot be empty' error
@@ -97,7 +88,7 @@ function postData(index, items, token, done) {
       if (sn < items.length) {
         sn++;
         // send next data
-        return postData(sn, items, token, done);
+        return postData({ index: sn, items, res, token, cb });
       }
     });
 }
@@ -120,4 +111,13 @@ function authenticate() {
       }
     })
     .catch((e) => console.log("error occured:", e));
+}
+
+function sendResponse({ uploads, errors, res }) {
+  res.send({
+    success: !!uploads.length, // mark successful if at least 1 upload succeeded
+    message: `successfully uploaded ${uploads.length} records. ${errors.length} requests failed`,
+    payload: [...uploads],
+    errors: [...errors],
+  });
 }
