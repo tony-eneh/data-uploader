@@ -15,7 +15,7 @@ app.post("/:endpoint/csv", (req, res) => {
   const results = [];
   const filePath = `${__dirname}/tempfile.csv`;
 
-  req.files.rafs
+  req.files.csv
     .mv(filePath)
     .then(() => {
       const fileStream = fs.createReadStream(filePath);
