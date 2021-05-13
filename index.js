@@ -48,7 +48,8 @@ app.post("/:endpoint/json", (req, res) => {
   });
 });
 
-app.listen(5001, () => console.log("express server listening on port 5001"));
+const PORT = process.env.PORT || 5001;
+app.listen(PORT, () => console.log("express server listening on port 5001"));
 
 function sendToEcoleApi({ items, res, endpoint, cb }) {
   console.log("process.env.API_URL", process.env.API_URL);
