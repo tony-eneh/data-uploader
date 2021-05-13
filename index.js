@@ -10,7 +10,7 @@ require("dotenv").config();
 app.use(fileUpload());
 app.use(bodyParser.json());
 
-app.post("/upload", (req, res) => {
+app.post("/:endpoint/csv", (req, res) => {
   console.log("request");
   const results = [];
   const filePath = `${__dirname}/tempfile.csv`;
@@ -26,7 +26,12 @@ app.post("/upload", (req, res) => {
         })
         .on("end", () => {
           console.log("end of reading file stream");
-          sendToEcoleApi(results, res, sendResponse);
+          sendToEcoleApi({
+            items: results,
+            res,
+            endpoint: req.params.endpoint,
+            cb: sendResponse,
+          });
         });
     })
     .catch((e) => {
@@ -34,19 +39,24 @@ app.post("/upload", (req, res) => {
     });
 });
 
-app.post("/json", (req, res) => {
-  sendToEcoleApi(req.body, res, sendResponse);
+app.post("/:endpoint/json", (req, res) => {
+  sendToEcoleApi({
+    items: req.body,
+    res,
+    endpoint: req.params.endpoint,
+    cb: sendResponse,
+  });
 });
 
 app.listen(5001, () => console.log("express server listening on port 5001"));
 
-function sendToEcoleApi(items, res, cb) {
+function sendToEcoleApi({ items, res, endpoint, cb }) {
   console.log("process.env.API_URL", process.env.API_URL);
   authenticate().then((token) => {
     console.log("token before posting data:", token);
     // console.log("items to be posted", items);
     // send the data recursively starting from the first
-    const config = { index: 0, items, token, res, cb };
+    const config = { index: 0, items, token, res, endpoint, cb };
     postData(config);
   });
 }
@@ -54,7 +64,8 @@ function sendToEcoleApi(items, res, cb) {
 let sn = 0;
 const uploads = [];
 const errors = [];
-function postData({ index, items, token, res, cb }) {
+
+function postData({ index, items, token, res, endpoint, cb }) {
   const item = items[index];
 
   if (!item) {
@@ -70,7 +81,7 @@ function postData({ index, items, token, res, cb }) {
     delete item.contactEmail;
   }
   axios
-    .post(process.env.API_URL, item, {
+    .post(`${process.env.API_URL}/${endpoint}`, item, {
       headers: {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
@@ -88,7 +99,7 @@ function postData({ index, items, token, res, cb }) {
       if (sn < items.length) {
         sn++;
         // send next data
-        return postData({ index: sn, items, res, token, cb });
+        return postData({ index: sn, items, res, endpoint, token, cb });
       }
     });
 }
