@@ -1,6 +1,6 @@
 let token;
 
-export function sendResponse({ payload, errors, res }) {
+export function sendResponse({ payload, errors }, res) {
   res.send({
     success: !!payload.length, // mark successful if at least 1 request succeeded
     message: `successfully uploaded ${payload.length} records. ${errors.length} requests failed`,
@@ -42,4 +42,13 @@ export function getClasses() {
     });
   });
   return classes;
+}
+
+export function removeEmptyFields(items) {
+  return items.map((item) => {
+    Object.entries(item).forEach(([k, v]) => {
+      if (v === "") delete item[k];
+    });
+    return item;
+  });
 }
